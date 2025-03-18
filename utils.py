@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import folium
 import polyline
 import os
+import json
 
 # OpenWeatherMap API key from environment variable
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "686810d738e10e4b20cf4f81ae5e0705")
@@ -179,3 +180,42 @@ def load_route_data():
         raise FileNotFoundError("Route data file not found in any expected location")
     except Exception as e:
         raise Exception(f"Failed to load route data: {str(e)}")
+
+def load_polyline_from_json(city, state):
+    """Load polyline data from JSON file for a given city and state"""
+    try:
+        json_paths = ['route_data.json', 'attached_assets/route_data.json']
+
+        for path in json_paths:
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    route_data = json.loads(f.read())
+
+                # Look for matching route
+                for route in route_data:
+                    if (route.get('drop_city', '').lower() == city.lower() and 
+                        route.get('drop_state', '').lower() == state.lower()):
+                        return route.get('polyline')
+
+        return None
+    except Exception as e:
+        print(f"Error loading JSON polyline: {str(e)}")
+        return None
+
+def get_route_polyline(destination_row):
+    """Get polyline data from either Excel or JSON source"""
+    try:
+        # First try Excel data
+        if 'Encoded Polyline' in destination_row:
+            polyline_data = destination_row['Encoded Polyline']
+            if not pd.isna(polyline_data):
+                return polyline_data
+
+        # If Excel data not available, try JSON
+        city = destination_row['Drop City']
+        state = destination_row['Drop State']
+        return load_polyline_from_json(city, state)
+
+    except Exception as e:
+        print(f"Error getting route polyline: {str(e)}")
+        return None

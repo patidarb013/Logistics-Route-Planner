@@ -1,8 +1,9 @@
 import streamlit as st
 from utils import (
     load_route_data, get_available_dates, calculate_avg_temp,
-    recommend_truck_type, create_route_map
+    recommend_truck_type, create_route_map, get_route_polyline
 )
+import json
 import numpy as np
 from datetime import datetime
 import folium
@@ -119,10 +120,10 @@ try:
 
             with result_col2:
                 st.markdown("### 🗺️ Route Visualization")
-                # Get polyline data from the correct column
-                polyline_data = selected_destination['Encoded Polyline']
+                # Get polyline data using the new function
+                polyline_data = get_route_polyline(selected_destination)
 
-                if not pd.isna(polyline_data):
+                if polyline_data:
                     try:
                         # Debug info
                         st.write("Debug: Processing polyline data...")
