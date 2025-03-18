@@ -115,14 +115,15 @@ try:
             with result_col2:
                 st.markdown("### 🗺️ Route Visualization")
                 # Create and display map
-                if selected_destination['Polyline']:
+                polyline_data = selected_destination.get('polyline', selected_destination.get('Polyline'))
+                if polyline_data:
                     try:
-                        route_map = create_route_map(selected_destination['Polyline'])
+                        route_map = create_route_map(polyline_data)
                         folium_static(route_map, width=600)
                     except Exception as e:
-                        st.error("Unable to display route map. Please try again.")
+                        st.error(f"Unable to display route map: {str(e)}")
                 else:
-                    st.error("Route visualization not available for this destination")
+                    st.error("Route visualization data not available for this destination")
 
 except Exception as e:
     st.error(f"An error occurred: {str(e)}")
