@@ -7,6 +7,7 @@ import numpy as np
 from datetime import datetime
 import folium
 from streamlit_folium import folium_static
+import pandas as pd
 
 # Page configuration
 st.set_page_config(
@@ -118,20 +119,10 @@ try:
 
             with result_col2:
                 st.markdown("### 🗺️ Route Visualization")
-                # Debug info
-                st.write("Debug - Available columns:", selected_destination.index.tolist())
+                # Get polyline data from the correct column
+                polyline_data = selected_destination['Encoded Polyline']
 
-                # Try different possible column names for polyline data
-                polyline_columns = ['polyline', 'Polyline', 'route_polyline', 'Route_Polyline']
-                polyline_data = None
-
-                for col in polyline_columns:
-                    if col in selected_destination.index:
-                        polyline_data = selected_destination[col]
-                        st.success(f"Found polyline data in column: {col}")
-                        break
-
-                if polyline_data:
+                if not pd.isna(polyline_data):
                     try:
                         route_map = create_route_map(polyline_data)
                         folium_static(route_map, width=600)
@@ -139,7 +130,6 @@ try:
                         st.error(f"Unable to display route map: {str(e)}")
                 else:
                     st.error("Route visualization data not available for this destination")
-                    st.write("Available data fields:", selected_destination.index.tolist())
 
 except Exception as e:
     st.error(f"An error occurred: {str(e)}")
