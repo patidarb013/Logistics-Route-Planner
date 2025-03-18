@@ -101,13 +101,19 @@ def recommend_truck_type(avg_temp):
 def create_route_map(polyline_str):
     """Create a Folium map with the route polyline"""
     try:
+        # Decode polyline to get coordinates
         coords = polyline.decode(polyline_str)
+        if not coords:
+            raise ValueError("No coordinates found in polyline data")
 
+        # Calculate center point for the map
         center_lat = sum(lat for lat, _ in coords) / len(coords)
         center_lng = sum(lng for _, lng in coords) / len(coords)
 
+        # Create base map
         m = folium.Map(location=[center_lat, center_lng], zoom_start=5)
 
+        # Add the route polyline
         folium.PolyLine(
             coords,
             weight=3,
@@ -115,6 +121,7 @@ def create_route_map(polyline_str):
             opacity=0.8
         ).add_to(m)
 
+        # Add markers for start and end points
         folium.Marker(
             coords[0],
             popup='Start (Portland, ME)',
