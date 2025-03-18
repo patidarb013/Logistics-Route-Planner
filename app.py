@@ -35,13 +35,13 @@ try:
 
         if search_city:
             # Filter destinations based on the entered city
-            matches = df[df['Dropoff Location'].str.contains(search_city, case=False)]
+            matches = df[df['Drop City'].str.contains(search_city, case=False)]
             if matches.empty:
                 st.error("No matching cities found. Please try a different city name.")
                 selected_destination = None
             else:
-                selected_destination = matches.iloc[0]['Dropoff Location']
-                st.success(f"Found destination: {selected_destination}")
+                selected_destination = matches.iloc[0]
+                st.success(f"Found destination: {selected_destination['Drop City']}, {selected_destination['Drop State']}")
         else:
             selected_destination = None
 
@@ -56,11 +56,10 @@ try:
             help="Choose a delivery date (up to 5 days from today)"
         )
 
-    if selected_destination and st.button("Calculate Route", type="primary"):
+    if selected_destination is not None and st.button("Calculate Route", type="primary"):
         with st.spinner("Processing route information..."):
             # Get route information
-            route_info = df[df['Dropoff Location'] == selected_destination].iloc[0]
-            states = route_info['States Along Route'].split(', ')
+            states = selected_destination['States Along Route'].split(', ')
 
             # Calculate temperatures
             state_temps = calculate_avg_temp(states)
@@ -87,7 +86,7 @@ try:
                     st.markdown('<div class="route-info">', unsafe_allow_html=True)
                     st.markdown(f"""
                     🏁 **Origin:** Portland, Maine  
-                    🎯 **Destination:** {selected_destination}  
+                    🎯 **Destination:** {selected_destination['Drop City']}, {selected_destination['Drop State']}  
                     📅 **Delivery Date:** {selected_date.strftime('%B %d, %Y')}
                     """)
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -116,9 +115,9 @@ try:
             with result_col2:
                 st.markdown("### 🗺️ Route Visualization")
                 # Create and display map
-                if route_info['Polyline']:
+                if selected_destination['Polyline']:
                     try:
-                        route_map = create_route_map(route_info['Polyline'])
+                        route_map = create_route_map(selected_destination['Polyline'])
                         folium_static(route_map, width=600)
                     except Exception as e:
                         st.error("Unable to display route map. Please try again.")
