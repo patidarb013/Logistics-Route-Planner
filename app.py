@@ -124,10 +124,14 @@ try:
 
                 if not pd.isna(polyline_data):
                     try:
+                        # Debug info
+                        st.write("Debug: Processing polyline data...")
+
                         route_map = create_route_map(polyline_data)
                         folium_static(route_map, width=600)
                     except Exception as e:
                         st.error(f"Unable to display route map: {str(e)}")
+                        st.write("Please try a different destination or contact support if the issue persists.")
                 else:
                     st.error("Route visualization data not available for this destination")
 

@@ -101,10 +101,27 @@ def recommend_truck_type(avg_temp):
 def create_route_map(polyline_str):
     """Create a Folium map with the route polyline"""
     try:
+        # Debug print
+        print(f"Received polyline string: {polyline_str[:50]}...")  # Print first 50 chars
+
+        # Basic validation
+        if not isinstance(polyline_str, str):
+            raise ValueError(f"Expected string, got {type(polyline_str)}")
+
+        if not polyline_str.strip():
+            raise ValueError("Empty polyline string")
+
         # Decode polyline to get coordinates
-        coords = polyline.decode(polyline_str)
+        try:
+            coords = polyline.decode(polyline_str)
+        except Exception as e:
+            raise ValueError(f"Failed to decode polyline: {str(e)}")
+
         if not coords:
-            raise ValueError("No coordinates found in polyline data")
+            raise ValueError("No coordinates found after decoding polyline")
+
+        # Print first few coordinates for debugging
+        print(f"First few coordinates: {coords[:3]}")
 
         # Calculate center point for the map
         center_lat = sum(lat for lat, _ in coords) / len(coords)
@@ -136,6 +153,7 @@ def create_route_map(polyline_str):
 
         return m
     except Exception as e:
+        print(f"Error in create_route_map: {str(e)}")  # Debug print
         raise Exception(f"Failed to create route map: {str(e)}")
 
 def get_available_dates():
