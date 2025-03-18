@@ -27,25 +27,23 @@ try:
     col1, col2 = st.columns(2)
 
     with col1:
-        # Search input for destination city
-        available_cities = sorted(df['Dropoff Location'].str.split(',').str[0].unique())
+        # Simple text input for DROP CITY
         search_city = st.text_input(
-            "Search Drop City",
-            help="Type to search for your delivery city"
+            "Enter DROP CITY",
+            help="Type your delivery city name"
         )
 
-        # Filter cities based on search input
-        filtered_cities = [city for city in available_cities if search_city.lower() in city.lower()] if search_city else available_cities
-
-        # Show filtered cities in a selectbox
-        selected_city = st.selectbox(
-            "Select from available cities",
-            options=filtered_cities,
-            help="Choose your delivery city from the filtered list"
-        )
-
-        # Get full location (city, state) based on selected city
-        selected_destination = df[df['Dropoff Location'].str.contains(selected_city, case=False)]['Dropoff Location'].iloc[0]
+        if search_city:
+            # Filter destinations based on the entered city
+            matches = df[df['Dropoff Location'].str.contains(search_city, case=False)]
+            if matches.empty:
+                st.error("No matching cities found. Please try a different city name.")
+                selected_destination = None
+            else:
+                selected_destination = matches.iloc[0]['Dropoff Location']
+                st.success(f"Found destination: {selected_destination}")
+        else:
+            selected_destination = None
 
     with col2:
         # Date selection
@@ -58,7 +56,7 @@ try:
             help="Choose a delivery date (up to 5 days from today)"
         )
 
-    if st.button("Calculate Route", type="primary"):
+    if selected_destination and st.button("Calculate Route", type="primary"):
         with st.spinner("Processing route information..."):
             # Get route information
             route_info = df[df['Dropoff Location'] == selected_destination].iloc[0]
