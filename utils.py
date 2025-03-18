@@ -73,7 +73,6 @@ def get_temperature(lat, lon):
         response.raise_for_status()
         return response.json()['main']['temp']
     except requests.exceptions.RequestException as e:
-        #st.error(f"Weather API error: {str(e)}") #Removed as Streamlit is not used here.
         return None
 
 def calculate_avg_temp(states):
@@ -147,6 +146,7 @@ def load_route_data():
         for file_path in file_paths:
             if os.path.exists(file_path):
                 df = pd.read_excel(file_path)
+                print(f"Available columns: {df.columns.tolist()}")  # Debug info
                 df['Pick Zip'] = df['Pick Zip'].astype(str).str.strip()
                 df['Drop Zip'] = df['Drop Zip'].astype(str).str.strip()
                 return df

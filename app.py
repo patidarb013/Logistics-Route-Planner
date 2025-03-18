@@ -23,6 +23,10 @@ try:
     # Load route data
     df = load_route_data()
 
+    # Debug info
+    st.sidebar.write("Debug Info:")
+    st.sidebar.write("Available columns:", df.columns.tolist())
+
     # Create two columns for input
     col1, col2 = st.columns(2)
 
@@ -114,8 +118,19 @@ try:
 
             with result_col2:
                 st.markdown("### 🗺️ Route Visualization")
-                # Create and display map
-                polyline_data = selected_destination.get('polyline', selected_destination.get('Polyline'))
+                # Debug info
+                st.write("Debug - Available columns:", selected_destination.index.tolist())
+
+                # Try different possible column names for polyline data
+                polyline_columns = ['polyline', 'Polyline', 'route_polyline', 'Route_Polyline']
+                polyline_data = None
+
+                for col in polyline_columns:
+                    if col in selected_destination.index:
+                        polyline_data = selected_destination[col]
+                        st.success(f"Found polyline data in column: {col}")
+                        break
+
                 if polyline_data:
                     try:
                         route_map = create_route_map(polyline_data)
@@ -124,6 +139,7 @@ try:
                         st.error(f"Unable to display route map: {str(e)}")
                 else:
                     st.error("Route visualization data not available for this destination")
+                    st.write("Available data fields:", selected_destination.index.tolist())
 
 except Exception as e:
     st.error(f"An error occurred: {str(e)}")
