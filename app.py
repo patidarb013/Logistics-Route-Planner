@@ -12,6 +12,10 @@ from utils import (
     recommend_truck_type
 )
 
+# Add debugging information
+st.set_option('deprecation.showPyplotGlobalUse', False)
+st.set_option('deprecation.showfileUploaderEncoding', False)
+
 # Page configuration must be the first Streamlit command
 st.set_page_config(
     page_title="Logistics Route Planner",
@@ -19,6 +23,8 @@ st.set_page_config(
     layout="wide"
 ) 
 
+# Add startup debugging
+st.write("Starting application...")
 
 # Load environment variables
 load_dotenv()
@@ -26,10 +32,32 @@ load_dotenv()
 # Google Maps API Key from environment variable
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
+# Add more debugging
+st.write("Checking data files...")
+try:
+    # Check if data file exists
+    data_paths = [
+        "route_unique_data.xlsx",
+        "data/route_unique_data.xlsx",
+        "attached_assets/route_unique_data.xlsx"
+    ]
+    data_file_found = False
+    for path in data_paths:
+        if os.path.exists(path):
+            st.write(f"Found data file at: {path}")
+            data_file_found = True
+            break
+    if not data_file_found:
+        st.error("Data file not found in any expected location!")
+except Exception as e:
+    st.error(f"Error checking data files: {str(e)}")
+
 # Validate API key
 if not GOOGLE_MAPS_API_KEY:
-    st.error("⚠️ Google Maps API key is not set. Please add your API key to the .env file.")
+    st.warning("⚠️ Google Maps API key is not set. Please add your API key to the .env file.")
     st.info("To get a Google Maps API key:\n1. Go to https://console.cloud.google.com/\n2. Create a project\n3. Enable Maps JavaScript API, Directions API, and Geocoding API\n4. Create credentials (API key)\n5. Add the key to your .env file")
+else:
+    st.write("Google Maps API key is set.")
 
 # Title and description
 st.title("🚛 Logistics Route Planner")
@@ -43,7 +71,11 @@ if 'savings_history' not in st.session_state:
 
 try:
     # Load route data
+    st.write("Loading route data...")
     df = load_route_data()
+    st.write("Route data loaded successfully!")
+    st.write(f"Number of routes: {len(df)}")
+    st.write("Available columns:", df.columns.tolist())
 
     # Add a sidebar section for savings overview
     with st.sidebar:
