@@ -2,17 +2,20 @@ import pandas as pd
 import requests
 import numpy as np
 from collections import defaultdict
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import folium
 import polyline
 import os
 import json
+import random
+import streamlit as st
 
 # OpenWeatherMap API key from environment variable
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "686810d738e10e4b20cf4f81ae5e0705")
 
-# State capital coordinates
+# ✅ State capital coordinates (for fast lookup)
 STATE_CAPITAL_COORDS = {
     "Alabama": (32.3770, -86.3000),
     "Alaska": (58.3019, -134.4197),
@@ -66,156 +69,134 @@ STATE_CAPITAL_COORDS = {
     "Wyoming": (41.1400, -104.8202)
 }
 
-def get_temperature(lat, lon):
-    """Get temperature using OpenWeatherMap API"""
-    url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={WEATHER_API_KEY}&units=imperial"
+
+# Get available delivery dates (next 5 days)
+def get_available_dates():
+    today = datetime.now()
+    dates = [today + timedelta(days=x) for x in range(6)]
+    return dates
+
+
+# ✅ Get temperature using OpenWeatherMap API (5-day forecast)
+def get_temperature(lat, lon, target_date):
+    url = f"http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={WEATHER_API_KEY}&units=imperial"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()['list']
+        target_date = datetime.strptime(target_date, '%Y-%m-%d')
+
+        # Get all temperature readings for the target date
+        temps = []
+        for entry in data:
+            forecast_time = datetime.fromtimestamp(entry['dt'])
+            if forecast_time.date() == target_date.date():
+                temp = entry['main'].get('temp')
+                if temp is not None:
+                    temps.append(temp)
+        
+        if temps:
+            # Calculate min, max, and average temperatures
+            min_temp = min(temps)
+            max_temp = max(temps)
+            avg_temp = sum(temps) / len(temps)
+            
+            return {
+                'min_temp': round(min_temp, 2),
+                'max_temp': round(max_temp, 2),
+                'avg_temp': round(avg_temp, 2)
+            }
+
+    return None
+
+# ✅ Get average temperature for states along the route
+def calculate_avg_temp(states, date):
+    """
+    Calculate average temperature for a list of states on a given date.
+    Returns a dictionary with temperature data for each state.
+    """
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.json()['main']['temp']
-    except requests.exceptions.RequestException as e:
-        return None
+        state_temps = {}
+        
+        # Use threading for faster execution
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_state = {
+                executor.submit(get_temperature, STATE_CAPITAL_COORDS[state][0], 
+                              STATE_CAPITAL_COORDS[state][1], date): state 
+                for state in states if state in STATE_CAPITAL_COORDS
+            }
+            
+            for future in future_to_state:
+                state = future_to_state[future]
+                try:
+                    temp_data = future.result()
+                    if temp_data is not None:
+                        state_temps[state] = temp_data
+                    else:
+                        st.warning(f"Temperature data not available for {state}")
+                        state_temps[state] = {
+                            'min_temp': 0,
+                            'max_temp': 0,
+                            'avg_temp': 0
+                        }
+                except Exception as e:
+                    st.warning(f"Error getting temperature for {state}: {str(e)}")
+                    state_temps[state] = {
+                        'min_temp': 0,
+                        'max_temp': 0,
+                        'avg_temp': 0
+                    }
+        
+        # Preserve order based on the order in the `states` list
+        ordered_temps = OrderedDict(
+            (state, state_temps[state]) for state in states if state in state_temps
+        )
+        
+        return ordered_temps
+        
+    except Exception as e:
+        st.error(f"Error calculating temperatures: {str(e)}")
+        return {}
 
-def calculate_avg_temp(states):
-    """Calculate average temperature for states along the route"""
-    state_temp = defaultdict(list)
 
-    def fetch_temp(state):
-        if state in STATE_CAPITAL_COORDS:
-            lat, lon = STATE_CAPITAL_COORDS[state]
-            temp = get_temperature(lat, lon)
-            if temp is not None:
-                state_temp[state].append(temp)
-
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        executor.map(fetch_temp, states)
-
-    return {state: np.mean(temps) for state, temps in state_temp.items() if temps}
-
+# Recommend truck type based on temperature
 def recommend_truck_type(avg_temp):
-    """Recommend truck type based on temperature"""
     if 40 <= avg_temp <= 60:
         return "Dry Truck (40°F - 60°F)"
     else:
         return "Reefer Truck (Outside 40°F - 60°F)"
 
-def create_route_map(polyline_str):
-    """Create a Folium map with the route polyline"""
-    try:
-        # Debug print
-        print(f"Received polyline string: {polyline_str[:50]}...")  # Print first 50 chars
-
-        # Basic validation
-        if not isinstance(polyline_str, str):
-            raise ValueError(f"Expected string, got {type(polyline_str)}")
-
-        if not polyline_str.strip():
-            raise ValueError("Empty polyline string")
-
-        # Decode polyline to get coordinates
-        try:
-            coords = polyline.decode(polyline_str)
-        except Exception as e:
-            raise ValueError(f"Failed to decode polyline: {str(e)}")
-
-        if not coords:
-            raise ValueError("No coordinates found after decoding polyline")
-
-        # Print first few coordinates for debugging
-        print(f"First few coordinates: {coords[:3]}")
-
-        # Calculate center point for the map
-        center_lat = sum(lat for lat, _ in coords) / len(coords)
-        center_lng = sum(lng for _, lng in coords) / len(coords)
-
-        # Create base map
-        m = folium.Map(location=[center_lat, center_lng], zoom_start=5)
-
-        # Add the route polyline
-        folium.PolyLine(
-            coords,
-            weight=3,
-            color='blue',
-            opacity=0.8
-        ).add_to(m)
-
-        # Add markers for start and end points
-        folium.Marker(
-            coords[0],
-            popup='Start (Portland, ME)',
-            icon=folium.Icon(color='green')
-        ).add_to(m)
-
-        folium.Marker(
-            coords[-1],
-            popup='Destination',
-            icon=folium.Icon(color='red')
-        ).add_to(m)
-
-        return m
-    except Exception as e:
-        print(f"Error in create_route_map: {str(e)}")  # Debug print
-        raise Exception(f"Failed to create route map: {str(e)}")
-
-def get_available_dates():
-    """Get list of available dates (current date + 5 days)"""
-    today = datetime.now()
-    dates = [today + timedelta(days=x) for x in range(6)]
-    return dates
-
+# Load route data from Excel
 def load_route_data():
-    """Load and process route data from Excel"""
+    """Load route data from Excel file."""
     try:
-        # Try loading from root directory first
-        file_paths = ['route_unique_data.xlsx', 'attached_assets/route_unique_data.xlsx']
-
-        for file_path in file_paths:
-            if os.path.exists(file_path):
-                df = pd.read_excel(file_path)
-                print(f"Available columns: {df.columns.tolist()}")  # Debug info
-                df['Pick Zip'] = df['Pick Zip'].astype(str).str.strip()
-                df['Drop Zip'] = df['Drop Zip'].astype(str).str.strip()
-                return df
-
-        raise FileNotFoundError("Route data file not found in any expected location")
+        # Use absolute path for the dataset
+        file_path = "/Users/bhaveshpatidar/Downloads/TruckRouteWeather/attached_assets/route_unique_data.xlsx"
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            print(f"Error: File not found at {file_path}")
+            print(f"Current directory contents:")
+            print(os.listdir("/Users/bhaveshpatidar/Downloads/TruckRouteWeather/attached_assets"))
+            return pd.DataFrame()
+            
+        print(f"Attempting to load file from: {file_path}")
+        df = pd.read_excel(file_path)
+        
+        if df.empty:
+            print("Warning: Loaded DataFrame is empty")
+            return df
+            
+        print(f"Successfully loaded DataFrame with shape: {df.shape}")
+        print("Available columns in the dataset:", df.columns.tolist())
+        print("\nFirst few rows of the DataFrame:")
+        print(df.head())
+        return df
+        
     except Exception as e:
-        raise Exception(f"Failed to load route data: {str(e)}")
+        print(f"Error loading route data: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        return pd.DataFrame()  # Return empty DataFrame if there's an error
 
-def load_polyline_from_json(city, state):
-    """Load polyline data from JSON file for a given city and state"""
-    try:
-        json_paths = ['route_data.json', 'attached_assets/route_data.json']
-
-        for path in json_paths:
-            if os.path.exists(path):
-                with open(path, 'r') as f:
-                    route_data = json.loads(f.read())
-
-                # Look for matching route
-                for route in route_data:
-                    if (route.get('drop_city', '').lower() == city.lower() and 
-                        route.get('drop_state', '').lower() == state.lower()):
-                        return route.get('polyline')
-
-        return None
-    except Exception as e:
-        print(f"Error loading JSON polyline: {str(e)}")
-        return None
-
-def get_route_polyline(destination_row):
-    """Get polyline data from either Excel or JSON source"""
-    try:
-        # First try Excel data
-        if 'Encoded Polyline' in destination_row:
-            polyline_data = destination_row['Encoded Polyline']
-            if not pd.isna(polyline_data):
-                return polyline_data
-
-        # If Excel data not available, try JSON
-        city = destination_row['Drop City']
-        state = destination_row['Drop State']
-        return load_polyline_from_json(city, state)
-
-    except Exception as e:
-        print(f"Error getting route polyline: {str(e)}")
-        return None
