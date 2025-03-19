@@ -1,33 +1,28 @@
-# Logistics Route Planner
+# Logistics Route Planner 🚛
 
-A Streamlit application that helps plan logistics routes and recommend truck types based on weather conditions along the route.
+A Streamlit application that helps logistics companies optimize their truck routes based on temperature conditions. The app recommends whether to use a Reefer or Dry truck based on the temperature conditions along the route.
 
 ## Features
 
 - Route planning from Portland, Maine to various destinations
-- Weather-based truck type recommendations
-- Interactive Google Maps visualization
-- Temperature analysis across states
-- 5-day weather forecast integration
-
-## Prerequisites
-
-- Python 3.8 or higher
-- Google Maps API key
-- OpenWeatherMap API key
+- Temperature-based truck type recommendations (Reefer vs Dry)
+- Cost savings analysis
+- Route visualization using Google Maps
+- Date comparison for optimal delivery timing
+- Real-time weather data integration
 
 ## Setup
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd TruckRouteWeather
+git clone https://github.com/patidarb013/Logistics-Route-Planner.git
+cd Logistics-Route-Planner
 ```
 
-2. Create and activate a virtual environment:
+2. Create a virtual environment and activate it:
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 3. Install dependencies:
@@ -35,32 +30,34 @@ source .venv/bin/activate  # On Windows, use: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Set up environment variables:
-   - Create a `.env` file in the project root
-   - Add your API keys:
-     ```
-     GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-     WEATHER_API_KEY=your_openweathermap_api_key
-     ```
+4. Create a `.env` file with your API keys:
+```
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
 
-## Running the Application
-
-1. Start the Streamlit app:
+5. Run the application:
 ```bash
 streamlit run app.py
 ```
 
-2. Open your web browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
+## Environment Variables
+
+- `GOOGLE_MAPS_API_KEY`: Your Google Maps API key for route visualization
 
 ## Usage
 
-1. Enter the destination city in the "Enter DROP CITY" field
-2. Select a delivery date (up to 5 days from today)
-3. Click "Calculate Route" to see:
+1. Enter your destination city
+2. Select a delivery date
+3. Click "Calculate Route" to get:
    - Route details
-   - Temperature analysis across states
-   - Recommended truck type
-   - Interactive route map
+   - Truck type recommendation
+   - Temperature analysis
+   - Cost savings analysis
+   - Route visualization
+
+## Deployment
+
+This app is deployed on Streamlit Cloud. Visit [share.streamlit.io](https://share.streamlit.io) to deploy your own copy.
 
 ## Data Files
 
